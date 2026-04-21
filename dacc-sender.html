@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>DACC Batch Sender</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/ethers@6/dist/ethers.umd.min.js"></script>
+
+  <!-- Modern font -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Inter', sans-serif;
+      background: radial-gradient(circle at top, #0b1220, #05070f);
+      color: #e5e7eb;
+      display: flex;
+      justify-content: center;
+      padding: 40px;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 520px;
+      background: rgba(17, 24, 39, 0.85);
+      border: 1px solid rgba(56, 189, 248, 0.15);
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: 0 0 40px rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(10px);
+    }
+
+    .title {
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 5px;
+      color: #38bdf8;
+    }
+
+    .subtitle {
+      font-size: 13px;
+      color: #94a3b8;
+      margin-bottom: 20px;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 4px 10px;
+      font-size: 12px;
+      border-radius: 999px;
+      background: rgba(56, 189, 248, 0.1);
+      color: #38bdf8;
+      margin-bottom: 15px;
+    }
+
+    input {
+      width: 100%;
+      padding: 12px;
+      margin-top: 10px;
+      border-radius: 10px;
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      background: rgba(15, 23, 42, 0.8);
+      color: white;
+      outline: none;
+    }
+
+    input:focus {
+      border-color: #38bdf8;
+    }
+
+    button {
+      width: 100%;
+      padding: 12px;
+      margin-top: 16px;
+      border-radius: 10px;
+      border: none;
+      background: linear-gradient(90deg, #38bdf8, #22c55e);
+      color: #0b1220;
+      font-weight: 700;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+
+    button:hover {
+      transform: scale(1.02);
+    }
+
+    button:disabled {
+      background: gray;
+      cursor: not-allowed;
+    }
+
+    #progress {
+      margin-top: 15px;
+      font-size: 13px;
+      color: #38bdf8;
+    }
+
+    pre {
+      margin-top: 15px;
+      background: rgba(0,0,0,0.5);
+      padding: 12px;
+      border-radius: 10px;
+      max-height: 220px;
+      overflow: auto;
+      font-size: 12px;
+      border: 1px solid rgba(148, 163, 184, 0.1);
+    }
+
+    .footer-note {
+      font-size: 11px;
+      color: #64748b;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="container">
+
+    <div class="badge">DACC TESTNET TOOL</div>
+
+    <div class="title">Batch Transaction Sender</div>
+    <div class="subtitle">Send testnet tokens to multiple wallets instantly</div>
+
+    <input id="key" placeholder="Private key (testnet only)" />
+    <input id="amount" placeholder="Amount per wallet (e.g. 0.001)" />
+    <input id="count" placeholder="Number of wallets (e.g. 60)" />
+
+    <button id="btn" onclick="run()">Run Batch Send</button>
+
+    <div id="progress"></div>
+    <pre id="log"></pre>
+
+    <div class="footer-note">
+      ⚠️ Runs fully in browser — private key is never stored or sent
+    </div>
+
+  </div>
+
+  <script>
+    const RPC_URL = "https://rpctest.dachain.tech";
+
+    function log(msg) {
+      document.getElementById("log").textContent += msg + "\n";
+    }
+
+    async function run() {
+      const btn = document.getElementById("btn");
+      btn.disabled = true;
+
+      const pk = document.getElementById("key").value.trim();
+      const amountInput = document.getElementById("amount").value.trim();
+      const countInput = document.getElementById("count").value.trim();
+
+      if (!pk || !amountInput || !countInput) {
+        alert("Fill all fields");
+        btn.disabled = false;
+        return;
+      }
+
+      const provider = new ethers.JsonRpcProvider(RPC_URL);
+      const wallet = new ethers.Wallet(pk, provider);
+      const amount = ethers.parseEther(amountInput);
+      const total = parseInt(countInput);
+
+      log("Initializing batch...\n");
+
+      let nonce = await provider.getTransactionCount(wallet.address, "pending");
+
+      for (let i = 0; i < total; i++) {
+
+        document.getElementById("progress").textContent =
+          `Progress: ${i + 1} / ${total}`;
+
+        const randomWallet = ethers.Wallet.createRandom();
+
+        try {
+          const tx = await wallet.sendTransaction({
+            to: randomWallet.address,
+            value: amount,
+            nonce: nonce++
+          });
+
+          log(`✓ ${i + 1}/${total} → ${tx.hash}`);
+
+        } catch (err) {
+          log(`✗ ${i + 1}/${total} → ${err.message}`);
+        }
+      }
+
+      log("\nCompleted.");
+      btn.disabled = false;
+    }
+  </script>
+
+</body>
+</html>
